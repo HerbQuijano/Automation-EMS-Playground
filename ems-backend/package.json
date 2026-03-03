@@ -1,0 +1,20 @@
+{
+  "name": "ems-backend",
+  "version": "1.0.0",
+  "type": "commonjs",
+  "main": "server.js",
+  "scripts": {
+    "db:init": "node -e \"require('./src/db/schema').initSchema().then(()=>console.log('schema ok')).catch(console.error)\"",
+    "db:seed": "node -e \"require('./src/db/seed').seed().then(()=>console.log('seed ok')).catch(console.error)\"",
+    "db:reset": "node -e \"require('./src/db/schema').resetSchema().then(()=>require('./src/db/seed').seed()).then(()=>console.log('reset ok')).catch(console.error)\"",
+    "lint:openapi": "npx @redocly/cli lint ./src/swagger/openapi.yaml",
+    "dev": "npm run lint:openapi && nodemon server.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^5.2.1",
+    "js-yaml": "^4.1.1",
+    "sqlite3": "^5.1.7",
+    "swagger-ui-express": "^5.0.1"
+  }
+}

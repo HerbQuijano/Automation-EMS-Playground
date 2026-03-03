@@ -1,0 +1,513 @@
+openapi: 3.0.3
+info:
+  title: EMS Management API
+  version: 1.0.0
+
+servers:
+  # Recomendado para evitar problemas cuando abras swagger desde otra máquina/IP:
+  # - url: /
+  - url: http://localhost:3000
+
+tags:
+  - name: Health
+  - name: Auth
+  - name: Employees
+  - name: QA
+  - name: Audit
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    ErrorResponse:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: string
+          example: "Unauthorized"
+
+    OkResponse:
+      type: object
+      required: [ok]
+      properties:
+        ok:
+          type: boolean
+          example: true
+
+    HealthResponse:
+      type: object
+      required: [ok, service, time]
+      properties:
+        ok: { type: boolean, example: true }
+        service: { type: string, example: "ems-api" }
+        time: { type: string, example: "2025-12-24T16:15:16.038Z" }
+
+    LoginRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email:
+          type: string
+          example: admin@ems.local
+        password:
+          type: string
+          example: Admin123!
+
+    LoginResponse:
+      type: object
+      required: [token, expires_at, user]
+      properties:
+        token: { type: string, example: "eyJhbGciOi..." }
+        expires_at: { type: string, example: "2025-12-24T23:59:59.000Z" }
+        user:
+          type: object
+          required: [id, email, role]
+          properties:
+            id: { type: integer, example: 1 }
+            email: { type: string, example: "admin@ems.local" }
+            role: { type: string, example: "admin" }
+
+    MeResponse:
+      type: object
+      required: [user]
+      properties:
+        user:
+          type: object
+          required: [id, email, role]
+          properties:
+            id: { type: integer, example: 1 }
+            email: { type: string, example: "admin@ems.local" }
+            role: { type: string, example: "admin" }
+
+    Employee:
+      type: object
+      properties:
+        id: { type: integer, example: 1 }
+        first_name: { type: string, example: "Ada" }
+        last_name: { type: string, example: "Lovelace" }
+        email: { type: string, example: "ada@ems.local" }
+        phone: { type: string, nullable: true, example: "+52 999 000 0000" }
+        department: { type: string, example: "Engineering" }
+        status: { type: string, example: "active" }
+        salary: { type: integer, example: 90000 }
+        hire_date: { type: string, example: "2024-05-01" }
+        manager_id: { type: integer, nullable: true, example: null }
+        notes: { type: string, example: "Good performer" }
+        employment_type: { type: string, example: "full_time" }
+        overtime_eligible: { type: integer, example: 1 }
+        workload_pct: { type: integer, example: 80 }
+
+    EmployeesListResponse:
+      type: object
+      required: [data]
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/Employee"
+
+    EmployeeResponse:
+      type: object
+      required: [data]
+      properties:
+        data:
+          $ref: "#/components/schemas/Employee"
+
+    DeleteResponse:
+      type: object
+      required: [ok]
+      properties:
+        ok: { type: boolean, example: true }
+
+    SlowResponse:
+      type: object
+      required: [ok, waited_ms, time]
+      properties:
+        ok: { type: boolean, example: true }
+        waited_ms: { type: integer, example: 800 }
+        time: { type: string, example: "2025-12-24T16:15:16.038Z" }
+
+    FlakyOkResponse:
+      type: object
+      required: [ok, roll]
+      properties:
+        ok: { type: boolean, example: true }
+        roll: { type: number, example: 0.72 }
+
+    FlakyFailResponse:
+      type: object
+      required: [error]
+      properties:
+        error: { type: string, example: "Temporary failure (simulated)" }
+
+    AuditLogItem:
+      type: object
+      properties:
+        id: { type: integer, example: 101 }
+        actor_user_id: { type: integer, example: 1 }
+        action: { type: string, example: "EMPLOYEE_UPDATED" }
+        entity: { type: string, example: "employee" }
+        entity_id: { type: integer, example: 7 }
+        created_at: { type: string, example: "2025-12-24T16:15:16.038Z" }
+        meta:
+          type: object
+          additionalProperties: true
+
+    AuditListResponse:
+      type: object
+      required: [data]
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/AuditLogItem"
+
+# 🔒 Auth por default para TODO (excepto donde pongamos security: [])
+security:
+  - bearerAuth: []
+
+paths:
+  /api/health:
+    get:
+      tags: [Health]
+      summary: Health check
+      description: Returns service status and server time.
+      security: []  # público
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthResponse"
+
+  /api/auth/login:
+    post:
+      tags: [Auth]
+      summary: Login and obtain JWT
+      description: Authenticates user credentials and returns a JWT token.
+      security: []  # público
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginRequest"
+      responses:
+        "200":
+          description: Logged in
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LoginResponse"
+        "400":
+          description: Missing or invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Invalid email/password
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /api/auth/me:
+    get:
+      tags: [Auth]
+      summary: Get current user
+      description: Returns the authenticated user profile from the JWT.
+      responses:
+        "200":
+          description: Current user
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MeResponse"
+        "401":
+          description: Unauthorized (missing/invalid token)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /api/auth/logout:
+    post:
+      tags: [Auth]
+      summary: Logout (stateless)
+      description: For stateless JWT, this typically returns OK (client discards token).
+      responses:
+        "200":
+          description: Logged out
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OkResponse"
+        "401":
+          description: Unauthorized (missing/invalid token)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /api/employees:
+    get:
+      tags: [Employees]
+      summary: List employees
+      description: Returns employees. Supports basic filtering and pagination.
+      parameters:
+        - in: query
+          name: search
+          required: false
+          description: Search by name/email (implementation-specific).
+          schema: { type: string }
+        - in: query
+          name: status
+          required: false
+          schema: { type: string }
+        - in: query
+          name: department
+          required: false
+          schema: { type: string }
+        - in: query
+          name: page
+          required: false
+          schema: { type: integer, default: 1, minimum: 1 }
+        - in: query
+          name: limit
+          required: false
+          schema: { type: integer, default: 10, minimum: 1, maximum: 100 }
+      responses:
+        "200":
+          description: List employees
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EmployeesListResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+    post:
+      tags: [Employees]
+      summary: Create employee
+      description: Creates a new employee record.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Employee"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EmployeeResponse"
+        "400":
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /api/employees/{id}:
+    get:
+      tags: [Employees]
+      summary: Get employee by id
+      description: Returns an employee record by id.
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer, minimum: 1 }
+      responses:
+        "200":
+          description: Employee
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EmployeeResponse"
+        "404":
+          description: Employee not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+    put:
+      tags: [Employees]
+      summary: Update employee
+      description: Updates an existing employee record.
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer, minimum: 1 }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Employee"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EmployeeResponse"
+        "400":
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Employee not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+    delete:
+      tags: [Employees]
+      summary: Delete employee
+      description: Deletes an employee record (may create audit log side-effects).
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer, minimum: 1 }
+      responses:
+        "200":
+          description: Deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DeleteResponse"
+        "404":
+          description: Employee not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /api/slow:
+    get:
+      tags: [QA]
+      summary: Artificial delay endpoint
+      description: Delays the response by the given milliseconds (useful for wait strategies).
+      security: []  # si quieres protegerlo, quita esta línea
+      parameters:
+        - in: query
+          name: ms
+          required: false
+          description: Delay in milliseconds.
+          schema:
+            type: integer
+            default: 1500
+            minimum: 0
+            maximum: 15000
+      responses:
+        "200":
+          description: Response returned after waiting.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SlowResponse"
+        "400":
+          description: Invalid ms value
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /api/flaky:
+    get:
+      tags: [QA]
+      summary: Flaky endpoint for retry practice
+      description: Randomly fails based on failRate (useful for retry logic).
+      security: []  # si quieres protegerlo, quita esta línea
+      parameters:
+        - in: query
+          name: failRate
+          required: false
+          description: Probability of failure (0..1).
+          schema:
+            type: number
+            default: 0.3
+            minimum: 0
+            maximum: 1
+      responses:
+        "200":
+          description: Sometimes OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FlakyOkResponse"
+        "503":
+          description: Sometimes fails (simulated outage)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FlakyFailResponse"
+        "400":
+          description: Invalid failRate value
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /api/audit:
+    get:
+      tags: [Audit]
+      summary: List audit logs
+      description: Returns audit log entries (side effects) for validations.
+      responses:
+        "200":
+          description: Audit logs
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuditListResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
