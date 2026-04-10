@@ -76,7 +76,8 @@ export default function UiPlayground() {
         name: true,
         department: true,
         workload: true,
-        overtime: true
+        overtime: true,
+        last_name: true
     });
 
     const tableRows = useMemo(() => ([
@@ -86,6 +87,28 @@ export default function UiPlayground() {
         { id: 2, first_name: "Zoe", last_name: "Álvarez", department: "HR", workload_pct: 25, overtime_eligible: 0 },
         { id: 19, first_name: "Mabel", last_name: "Pug", department: "Support", workload_pct: 95, overtime_eligible: 1 },
     ]), []);
+
+    const locatorPool = useMemo(
+        () => [
+            { id: "E101", first: "Chris", last: "Lee", department: "QA", status: "Active", shift: "Night" },
+            { id: "E102", first: "Chris", last: "Lee", department: "Support", status: "On leave", shift: "Day" },
+            { id: "E214", first: "Noah", last: "Patel", department: "Finance", status: "Active", shift: "Day" },
+            { id: "E309", first: "Mia", last: "Chen", department: "Engineering", status: "Probation", shift: "Swing" },
+            { id: "E450", first: "Rosa", last: "Nguyen", department: "Operations", status: "Active", shift: "Night" }
+        ],
+        []
+    );
+
+    const [locatorFilter, setLocatorFilter] = useState("all");
+    const [locatorShuffle, setLocatorShuffle] = useState(false);
+    const [locatorAction, setLocatorAction] = useState("No action yet");
+
+    const [eventLog, setEventLog] = useState([]);
+    const [stopBubble, setStopBubble] = useState(false);
+    const [hotkeyResult, setHotkeyResult] = useState("Waiting for Ctrl+K");
+    const [draftNote, setDraftNote] = useState("");
+    const [lastSavedNote, setLastSavedNote] = useState("Nothing saved");
+    const [customEventCount, setCustomEventCount] = useState(0);
 
     function sortBy(key) {
         if (sortKey === key) {
@@ -106,6 +129,7 @@ export default function UiPlayground() {
                 case "department": return (r.department || "").toLowerCase();
                 case "workload": return Number(r.workload_pct || 0);
                 case "overtime": return Number(r.overtime_eligible || 0);
+                case "last_name": return (r.last_name || "").toLowerCase();
                 default: return "";
             }
         }
@@ -118,6 +142,22 @@ export default function UiPlayground() {
             return 0;
         });
     }, [tableRows, sortKey, sortDir]);
+
+    const complexLocatorRows = useMemo(() => {
+        const filtered = locatorFilter === "all"
+            ? locatorPool
+            : locatorPool.filter((row) => row.status.toLowerCase() === locatorFilter);
+
+        const rows = locatorShuffle
+            ? [...filtered].sort((a, b) => `${a.last}${a.first}`.localeCompare(`${b.last}${b.first}`))
+            : filtered;
+
+        return rows.map((row, index) => ({
+            ...row,
+            unstableDomId: `emp-${row.id}-${locatorShuffle ? "v2" : "v1"}`,
+            visualIndex: index + 1
+        }));
+    }, [locatorFilter, locatorPool, locatorShuffle]);
 
     // AutoComplete and debounce
     const [query, setQuery] = useState("");
@@ -216,12 +256,67 @@ export default function UiPlayground() {
         setTimeout(() => setToast(""), 2200);
     }
 
+    function appendEventLog(source, type, detail = "") {
+        setEventLog((prev) => {
+            const line = `${source} | ${type}${detail ? ` | ${detail}` : ""}`;
+            return [line, ...prev].slice(0, 10);
+        });
+    }
+
     function togglePerm(id) {
         setPerms(prev => prev.map(p => (p.id === id ? { ...p, checked: !p.checked } : p)));
     }
 
     function setAllPerms(value) {
         setPerms(prev => prev.map(p => ({ ...p, checked: value })));
+    }
+
+    function triggerCustomWindowEvent() {
+        window.dispatchEvent(
+            new CustomEvent("pg:sync", {
+                detail: {
+                    source: "manual-trigger",
+                    at: new Date().toISOString()
+                }
+            })
+        );
+    }
+
+    function handlePropagationShellCapture() {
+        appendEventLog("propagation", "capture", "shell");
+    }
+
+    function handlePropagationShellBubble() {
+        appendEventLog("propagation", "bubble", "shell");
+    }
+
+    function handlePropagationMiddleBubble() {
+        appendEventLog("propagation", "bubble", "middle");
+    }
+
+    function handleInnerAction(e) {
+        if (stopBubble) {
+            e.stopPropagation();
+            appendEventLog("propagation", "stopPropagation", "inner button");
+        }
+        appendEventLog("propagation", "click", "inner button");
+        showToast("Inner action fired");
+    }
+
+    function handleHotkey(e) {
+        if (e.ctrlKey && e.key.toLowerCase() === "k") {
+            e.preventDefault();
+            const value = e.currentTarget.value.trim();
+            const command = value || "empty command";
+            setHotkeyResult(`Command palette simulation: ${command}`);
+            appendEventLog("keyboard", "Ctrl+K", command);
+        }
+    }
+
+    function handleNoteBlur(e) {
+        const nextValue = e.currentTarget.value.trim() || "(empty note)";
+        setLastSavedNote(nextValue);
+        appendEventLog("input", "blur", nextValue);
     }
 
     useEffect(() => {
@@ -261,6 +356,17 @@ export default function UiPlayground() {
         }
         window.addEventListener("message", onMessage);
         return () => window.removeEventListener("message", onMessage);
+    }, []);
+
+    useEffect(() => {
+        function onSync(e) {
+            const source = e?.detail?.source || "unknown";
+            setCustomEventCount((prev) => prev + 1);
+            appendEventLog("custom-event", "pg:sync", source);
+        }
+
+        window.addEventListener("pg:sync", onSync);
+        return () => window.removeEventListener("pg:sync", onSync);
     }, []);
 
 
@@ -401,10 +507,6 @@ export default function UiPlayground() {
                             {" "}{k}
                         </label>
                     ))}
-
-                    <div className="pill" data-testid="pg-sort-state">
-                        sort={sortKey}:{sortDir}
-                    </div>
                 </div>
 
                 <div className="tableWrap">
@@ -450,6 +552,14 @@ export default function UiPlayground() {
                                         </button>
                                     </th>
                                 )}
+
+                                 {cols.last_name && (
+                                    <th>
+                                        <button className="thBtn" onClick={() => sortBy("last_name")} data-testid="pg-th-last-name">
+                                            Last Name {sortKey === "last_name" ? (sortDir === "asc" ? "▲" : "▼") : ""}
+                                        </button>
+                                    </th>
+                                )}
                             </tr>
                         </thead>
 
@@ -461,6 +571,7 @@ export default function UiPlayground() {
                                     {cols.department && <td>{r.department}</td>}
                                     {cols.workload && <td>{r.workload_pct}%</td>}
                                     {cols.overtime && <td>{r.overtime_eligible ? "Yes" : "No"}</td>}
+                                    {cols.last_name && <td>{r.last_name}</td>}
                                 </tr>
                             ))}
                         </tbody>
@@ -499,6 +610,211 @@ export default function UiPlayground() {
                         Hint: TBD
                     </div>
                 ) : null}
+            </Section>
+
+            <Section
+                title="Hard + complex locators"
+                subtitle="Duplicate names, repeated action labels, and unstable DOM ids. Prefer role + name + scoped locators."
+            >
+                <div className="row gap" style={{ flexWrap: "wrap", marginBottom: 10 }}>
+                    <button
+                        className={`btn ${locatorFilter === "all" ? "" : "btnGhost"}`}
+                        onClick={() => setLocatorFilter("all")}
+                        data-testid="pg-hard-filter-all"
+                    >
+                        All
+                    </button>
+                    <button
+                        className={`btn ${locatorFilter === "active" ? "" : "btnGhost"}`}
+                        onClick={() => setLocatorFilter("active")}
+                        data-testid="pg-hard-filter-active"
+                    >
+                        Active
+                    </button>
+                    <button
+                        className={`btn ${locatorFilter === "on leave" ? "" : "btnGhost"}`}
+                        onClick={() => setLocatorFilter("on leave")}
+                        data-testid="pg-hard-filter-leave"
+                    >
+                        On leave
+                    </button>
+                    <button
+                        className="btn btnGhost"
+                        onClick={() => setLocatorShuffle((v) => !v)}
+                        data-testid="pg-hard-shuffle"
+                    >
+                        {locatorShuffle ? "Reset order" : "Shuffle order"}
+                    </button>
+                </div>
+
+                <div className="grid3" data-testid="pg-hard-grid">
+                    {complexLocatorRows.map((row) => {
+                        const fullName = `${row.first} ${row.last}`;
+                        return (
+                            <article
+                                key={`${row.id}-${row.unstableDomId}`}
+                                className="card"
+                                data-testid={`pg-hard-card-${row.id}`}
+                                data-employee-key={`${row.department.toLowerCase()}-${row.id}`}
+                            >
+                                <div className="row between" style={{ marginBottom: 8 }}>
+                                    <div>
+                                        <div className="muted small">Visual row #{row.visualIndex}</div>
+                                        <h4 style={{ margin: "4px 0" }}>
+                                            <span>{row.last},</span> <span>{row.first}</span>
+                                        </h4>
+                                    </div>
+                                    <span className="pill" data-testid={`pg-hard-status-${row.id}`}>{row.status}</span>
+                                </div>
+
+                                <div className="muted small" style={{ marginBottom: 8 }}>
+                                    Dept: {row.department} | Shift: {row.shift}
+                                </div>
+
+                                <div id={row.unstableDomId} className="muted small" data-testid={`pg-hard-dom-id-${row.id}`}>
+                                    DOM id: {row.unstableDomId}
+                                </div>
+
+                                <div className="row gap" style={{ marginTop: 10, flexWrap: "wrap" }}>
+                                    <button
+                                        className="btn btnGhost"
+                                        aria-label={`Open profile for ${fullName}`}
+                                        onClick={() => {
+                                            setLocatorAction(`Profile opened for ${fullName}`);
+                                            appendEventLog("locator", "open", `profile:${row.id}`);
+                                        }}
+                                        data-testid={`pg-hard-open-profile-${row.id}`}
+                                    >
+                                        Open
+                                    </button>
+
+                                    <button
+                                        className="btn btnGhost"
+                                        aria-label={`Open audit for ${fullName}`}
+                                        onClick={() => {
+                                            setLocatorAction(`Audit opened for ${fullName}`);
+                                            appendEventLog("locator", "open", `audit:${row.id}`);
+                                        }}
+                                        data-testid={`pg-hard-open-audit-${row.id}`}
+                                    >
+                                        Open
+                                    </button>
+                                </div>
+                            </article>
+                        );
+                    })}
+                </div>
+
+                <div className="pill" style={{ marginTop: 10 }} data-testid="pg-hard-last-action">
+                    Last action: {locatorAction}
+                </div>
+            </Section>
+
+            <Section
+                title="Event handling techniques"
+                subtitle="Propagation, keyboard shortcuts, blur commit, and custom window events with a live event log."
+            >
+                <div className="grid2" style={{ alignItems: "start" }}>
+                    <div className="card" data-testid="pg-evt-propagation-panel">
+                        <div className="muted small" style={{ marginBottom: 8 }}>
+                            Propagation lab
+                        </div>
+
+                        <label className="pill" style={{ display: "inline-flex", marginBottom: 10 }} data-testid="pg-evt-stop-bubble">
+                            <input
+                                type="checkbox"
+                                checked={stopBubble}
+                                onChange={(e) => setStopBubble(e.target.checked)}
+                            />
+                            {" "}Stop bubbling on inner click
+                        </label>
+
+                        <div
+                            className="card"
+                            onClickCapture={handlePropagationShellCapture}
+                            onClick={handlePropagationShellBubble}
+                            data-testid="pg-evt-shell"
+                        >
+                            <div
+                                className="card"
+                                onClick={handlePropagationMiddleBubble}
+                                data-testid="pg-evt-middle"
+                            >
+                                <button className="btn" onClick={handleInnerAction} data-testid="pg-evt-inner-btn">
+                                    Trigger inner action
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="card" data-testid="pg-evt-input-panel">
+                        <div className="muted small">Keyboard + blur handlers</div>
+
+                        <input
+                            className="input"
+                            placeholder="Type command, then press Ctrl+K"
+                            onKeyDown={handleHotkey}
+                            data-testid="pg-evt-hotkey-input"
+                            style={{ marginTop: 8 }}
+                        />
+
+                        <div className="pill" style={{ marginTop: 10 }} data-testid="pg-evt-hotkey-result">
+                            {hotkeyResult}
+                        </div>
+
+                        <textarea
+                            className="input"
+                            rows={3}
+                            value={draftNote}
+                            onChange={(e) => setDraftNote(e.target.value)}
+                            onBlur={handleNoteBlur}
+                            placeholder="Draft note. Blur the field to trigger save."
+                            data-testid="pg-evt-note"
+                            style={{ marginTop: 10, resize: "vertical", minHeight: 84 }}
+                        />
+
+                        <div className="muted small" data-testid="pg-evt-last-saved">
+                            Last saved note: {lastSavedNote}
+                        </div>
+
+                        <div className="row gap" style={{ marginTop: 10, flexWrap: "wrap" }}>
+                            <button className="btn btnGhost" onClick={triggerCustomWindowEvent} data-testid="pg-evt-custom-trigger">
+                                Dispatch window event
+                            </button>
+
+                            <div className="pill" data-testid="pg-evt-custom-count">
+                                pg:sync count: {customEventCount}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div className="card" style={{ marginTop: 10 }} data-testid="pg-evt-log-wrap">
+                    <div className="muted small" style={{ marginBottom: 8 }}>
+                        Event log (latest first)
+                    </div>
+
+                    {eventLog.length === 0 ? (
+                        <div className="muted" data-testid="pg-evt-log-empty">No events yet</div>
+                    ) : (
+                        <div className="tableWrap">
+                            <table className="table" data-testid="pg-evt-log-table">
+                                <thead>
+                                    <tr>
+                                        <th>Event</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {eventLog.map((line, idx) => (
+                                        <tr key={`${line}-${idx}`} data-testid={`pg-evt-log-${idx}`}>
+                                            <td>{line}</td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    )}
+                </div>
             </Section>
 
             <Section

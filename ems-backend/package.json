@@ -4,11 +4,15 @@
   "type": "commonjs",
   "main": "server.js",
   "scripts": {
+    "start": "node server.js",
     "db:init": "node -e \"require('./src/db/schema').initSchema().then(()=>console.log('schema ok')).catch(console.error)\"",
     "db:seed": "node -e \"require('./src/db/seed').seed().then(()=>console.log('seed ok')).catch(console.error)\"",
     "db:reset": "node -e \"require('./src/db/schema').resetSchema().then(()=>require('./src/db/seed').seed()).then(()=>console.log('reset ok')).catch(console.error)\"",
     "lint:openapi": "npx @redocly/cli lint ./src/swagger/openapi.yaml",
     "dev": "npm run lint:openapi && nodemon server.js"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.10"
   },
   "dependencies": {
     "cors": "^2.8.5",

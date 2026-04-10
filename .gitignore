@@ -23,3 +23,26 @@ dist-ssr
 *.sln
 *.sw?
 *.sqlite
+.env
+
+# Playwright
+/test-results/
+/playwright-report/
+/blob-report/
+/playwright/.cache/
+/playwright/.auth/
+/reports/html/
+/reports/allure-results/
+/reports/allure-report/
+/allure-report/
+
+# Skills
+/.agents/
+skills-lock.json
+
+# CICD files
+Dockerfile
+docker-compose.yml
+Jenkinsfile
+.github/workflows/*
+# OS generated files

@@ -2,18 +2,26 @@ openapi: 3.0.3
 info:
   title: EMS Management API
   version: 1.0.0
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
 
 servers:
   # Recomendado para evitar problemas cuando abras swagger desde otra máquina/IP:
-  # - url: /
-  - url: http://localhost:3000
+    - url: /
+  # - url: http://localhost:3000
 
 tags:
   - name: Health
+    description: Endpoints related to health checks and diagnostics.
   - name: Auth
+    description: Endpoints for authentication and user profile.
   - name: Employees
+    description: Endpoints for managing employee data.
   - name: QA
+    description: Endpoints for testing, diagnostics, and retry strategies.
   - name: Audit
+    description: Endpoints for audit logs and side-effect validations.
 
 components:
   securitySchemes:
@@ -174,6 +182,7 @@ security:
 paths:
   /api/health:
     get:
+      operationId: getHealth
       tags: [Health]
       summary: Health check
       description: Returns service status and server time.
@@ -185,9 +194,16 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthResponse"
+        "400":
+          description: Bad request (should not happen for this endpoint)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
 
   /api/auth/login:
     post:
+      operationId: login
       tags: [Auth]
       summary: Login and obtain JWT
       description: Authenticates user credentials and returns a JWT token.
@@ -220,6 +236,7 @@ paths:
 
   /api/auth/me:
     get:
+      operationId: getCurrentUser
       tags: [Auth]
       summary: Get current user
       description: Returns the authenticated user profile from the JWT.
@@ -239,6 +256,7 @@ paths:
 
   /api/auth/logout:
     post:
+      operationId: logout
       tags: [Auth]
       summary: Logout (stateless)
       description: For stateless JWT, this typically returns OK (client discards token).
@@ -258,6 +276,7 @@ paths:
 
   /api/employees:
     get:
+      operationId: listEmployees
       tags: [Employees]
       summary: List employees
       description: Returns employees. Supports basic filtering and pagination.
@@ -298,6 +317,7 @@ paths:
                 $ref: "#/components/schemas/ErrorResponse"
 
     post:
+      operationId: createEmployee
       tags: [Employees]
       summary: Create employee
       description: Creates a new employee record.
@@ -329,6 +349,7 @@ paths:
 
   /api/employees/{id}:
     get:
+      operationId: getEmployeeById
       tags: [Employees]
       summary: Get employee by id
       description: Returns an employee record by id.
@@ -358,6 +379,7 @@ paths:
                 $ref: "#/components/schemas/ErrorResponse"
 
     put:
+      operationId: updateEmployee
       tags: [Employees]
       summary: Update employee
       description: Updates an existing employee record.
@@ -399,6 +421,7 @@ paths:
                 $ref: "#/components/schemas/ErrorResponse"
 
     delete:
+      operationId: deleteEmployee
       tags: [Employees]
       summary: Delete employee
       description: Deletes an employee record (may create audit log side-effects).
@@ -429,6 +452,7 @@ paths:
 
   /api/slow:
     get:
+      operationId: getSlow
       tags: [QA]
       summary: Artificial delay endpoint
       description: Delays the response by the given milliseconds (useful for wait strategies).
@@ -459,6 +483,7 @@ paths:
 
   /api/flaky:
     get:
+      operationId: getFlaky
       tags: [QA]
       summary: Flaky endpoint for retry practice
       description: Randomly fails based on failRate (useful for retry logic).
@@ -495,6 +520,7 @@ paths:
 
   /api/audit:
     get:
+      operationId: getAuditLogs
       tags: [Audit]
       summary: List audit logs
       description: Returns audit log entries (side effects) for validations.

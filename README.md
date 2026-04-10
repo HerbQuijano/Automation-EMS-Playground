@@ -10,6 +10,7 @@ A full-stack Employee Management System (EMS) built for testing and automation p
 - [Project Structure](#project-structure)
 - [Getting Started](#getting-started)
 - [Running the Application](#running-the-application)
+- [UI Playground](#ui-playground)
 - [API Testing](#api-testing)
 - [API Documentation](#api-documentation)
 
@@ -32,6 +33,7 @@ This Employee Management System is designed as a testing playground for QA autom
 ## 🛠️ Tech Stack
 
 ### Backend
+
 - **Node.js** - Runtime environment
 - **Express 5.x** - Web framework
 - **SQLite3** - Database
@@ -40,6 +42,7 @@ This Employee Management System is designed as a testing playground for QA autom
 - **Nodemon** - Development auto-reload
 
 ### Frontend
+
 - **React 19.x** - UI library
 - **React Router DOM** - Client-side routing
 - **Vite** - Build tool and dev server
@@ -80,23 +83,50 @@ hq-automation-playground/
 ### Installation
 
 1. **Clone the repository**
+
    ```bash
    git clone <repository-url>
    cd hq-automation-playground
    ```
 
-2. **Install Backend Dependencies**
+2. **Install all dependencies (root workspace)**
+
+```bash
+npm install
+```
+
+3. **Initialize Database**
+
+```bash
+npm run db:reset
+```
+
+4. **Start full stack from root (recommended)**
+
+```bash
+npm run dev
+```
+
+This starts backend and frontend together using npm workspaces.
+
+### Alternative: Install and run each app separately
+
+If you prefer independent setup, use the per-folder workflow below.
+
+1. **Install Backend Dependencies**
+
    ```bash
    cd ems-backend
    npm install
    ```
 
-3. **Initialize Database**
+2. **Initialize Database**
+
    ```bash
    npm run db:reset
    ```
 
-4. **Install Frontend Dependencies**
+3. **Install Frontend Dependencies**
    ```bash
    cd ../ems-frontend
    npm install
@@ -104,18 +134,50 @@ hq-automation-playground/
 
 ## 🏃 Running the Application
 
+### From Root (recommended)
+
+```bash
+npm run dev
+```
+
+### Backend Only from Root
+
+```bash
+npm run dev:api
+```
+
+### Frontend Only from Root
+
+```bash
+npm run dev:web
+```
+
+### Build Frontend from Root
+
+```bash
+npm run build
+```
+
+### Lint from Root
+
+```bash
+npm run lint
+```
+
 ### Backend
 
 ```bash
 cd ems-backend
-npm start -- --host
+npm start
 ```
 
 The backend API will be available at:
+
 - API: `http://0.0.0.0:3000`
 - Swagger UI: `http://0.0.0.0:3000/api/docs`
 
 **Development mode with auto-reload:**
+
 ```bash
 npm run dev
 ```
@@ -129,16 +191,64 @@ npm run dev -- --host
 
 The frontend will be available at `http://localhost:5173` (or the port shown in terminal)
 
+## 🧩 UI Playground
+
+The app includes a dedicated UI automation training page at:
+
+- `http://localhost:5173/ui-playground`
+
+This page is designed to practice resilient Playwright locator strategies, waiting patterns, and UI event assertions.
+
+### New Sections Added
+
+- **Hard + complex locators**
+  - Duplicate names and repeated action labels (`Open`) to force scoped locators.
+  - Dynamic filtering and order shuffling to avoid brittle positional selectors.
+  - Unstable DOM id samples to reinforce test strategies based on role, accessible name, and stable test ids.
+  - Result state exposed via `pg-hard-last-action`.
+
+- **Event handling techniques**
+  - Propagation lab with capture/bubble behavior and optional `stopPropagation()`.
+  - Keyboard shortcut handling via `Ctrl+K`.
+  - `blur`-based note save behavior.
+  - Custom window event flow (`pg:sync`) with dispatch/listen validation.
+  - Live event log table (`pg-evt-log-table`) for deterministic assertions.
+
+### Quick Automation Targets
+
+- Locator filters/shuffle: `pg-hard-filter-all`, `pg-hard-filter-active`, `pg-hard-filter-leave`, `pg-hard-shuffle`
+- Locator cards/actions: `pg-hard-grid`, `pg-hard-card-*`, `pg-hard-open-profile-*`, `pg-hard-open-audit-*`
+- Event propagation controls: `pg-evt-shell`, `pg-evt-middle`, `pg-evt-inner-btn`, `pg-evt-stop-bubble`
+- Keyboard/input/custom events: `pg-evt-hotkey-input`, `pg-evt-note`, `pg-evt-custom-trigger`, `pg-evt-custom-count`
+
+### Recommended Playwright Patterns
+
+- Prefer `getByRole(...)` + accessible names for repeated button text.
+- Scope interactions with `locator(...).filter(...)` when duplicate names exist.
+- Assert event order from the log table instead of relying on timing.
+- Use explicit waits for UI state transitions (loading/result text) rather than fixed timeouts.
+
 ## 🧪 API Testing
 
 ### Default Credentials
 
+Admin
 - **Email**: `admin@ems.local`
 - **Password**: `Admin123!`
+
+Manager
+- **Email**: `manager!@ems.local`
+- **Password**: `Manager123!`
+
+Viewer
+- **Email**: `viewer!@ems.local`
+- **Password**: `Viewer123!`
+
 
 ### Example API Calls
 
 **Login and Get Token:**
+
 ```bash
 TOKEN=$(curl -s -X POST "http://localhost:3000/api/auth/login" \
   -H "Content-Type: application/json" \
@@ -147,24 +257,28 @@ echo $TOKEN
 ```
 
 **Get Employees:**
+
 ```bash
 curl http://localhost:3000/api/employees \
   -H "Authorization: Bearer $TOKEN"
 ```
 
 **Test Slow Endpoint (1200ms delay):**
+
 ```bash
 curl -i "http://localhost:3000/api/slow?ms=1200" \
   -H "Authorization: Bearer $TOKEN"
 ```
 
 **Test Flaky Endpoint (40% failure rate):**
+
 ```bash
 curl -i "http://localhost:3000/api/flaky?failRate=0.4" \
   -H "Authorization: Bearer $TOKEN"
 ```
 
 **Get Audit Logs:**
+
 ```bash
 curl -s "http://localhost:3000/api/audit?limit=10" \
   -H "Authorization: Bearer $TOKEN"
@@ -173,6 +287,7 @@ curl -s "http://localhost:3000/api/audit?limit=10" \
 ## 📚 API Documentation
 
 Once the backend is running, visit the Swagger UI at:
+
 ```
 http://localhost:3000/api/docs
 ```
@@ -190,3 +305,10 @@ This provides interactive documentation for all available endpoints.
 - The backend listens on `0.0.0.0` to be accessible from LAN and VPN connections (e.g., Tailscale)
 - The database is SQLite-based and stored locally
 - All API requests (except login) require a valid JWT token in the Authorization header
+
+## Reports
+
+- To open html report use: `npx playwright show-report reports/html`
+- To generate allure report use: `allure generate reports/allure-results --clean -o reports/allure-report`
+- To open allure report use: `allure open reports/allure-report`
+- To select reporter use : `npx playwright test --reporter=<reporter>`
