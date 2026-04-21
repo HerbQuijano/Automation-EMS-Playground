@@ -44,5 +44,8 @@ skills-lock.json
 Dockerfile
 docker-compose.yml
 Jenkinsfile
-.github/workflows/*
 # OS generated files
+
+#claude md
+claude.md
+.claude

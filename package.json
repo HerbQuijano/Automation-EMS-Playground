@@ -15,20 +15,14 @@
     "db:init": "npm run db:init --workspace ems-backend",
     "db:seed": "npm run db:seed --workspace ems-backend",
     "db:reset": "npm run db:reset --workspace ems-backend",
-    "allure:generate": "allure generate reports/allure-results --clean -o allure-report",
-    "allure:open": "allure open allure-report",
-    "allure:report": "npm run allure:generate && npm run allure:open",
-    "setup": "npm install && npx playwright install"
+    "test": "npm test --workspace ems-backend",
+    "setup": "npm install"
   },
   "devDependencies": {
-    "@playwright/test": "^1.59.1",
     "@types/node": "^25.5.2",
-    "allure-commandline": "^2.36.0",
-    "allure-playwright": "^3.6.0",
     "concurrently": "^9.1.2"
   },
   "dependencies": {
-    "dotenv": "^17.4.0",
-    "playwright": "^1.59.1"
+    "dotenv": "^17.4.0"
   }
 }
