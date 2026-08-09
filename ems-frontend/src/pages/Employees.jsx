@@ -1,9 +1,14 @@
 import { useEffect, useMemo, useState } from "react";
 import { apiFetch } from "../api/client";
+import { getUser } from "../auth/authStore";
 import EmployeeModal from "../components/EmployeeModal";
 
 
 export default function Employees() {
+    const role = getUser()?.role;
+    const canWrite = role === "admin" || role === "manager";
+    const canDelete = role === "admin";
+
     const [search, setSearch] = useState("");
     const [status, setStatus] = useState("");
     const [department, setDepartment] = useState("");
@@ -86,17 +91,19 @@ export default function Employees() {
             <div className="row between">
                 <h2>Employees</h2>
                 <div className="row gap">
-                    <button
-                        className="btn"
-                        onClick={() => {
-                            setSelected(null);
-                            setModalMode("create");
-                            setModalOpen(true);
-                        }}
-                        data-testid="employees-new"
-                    >
-                        New employee
-                    </button>
+                    {canWrite ? (
+                        <button
+                            className="btn"
+                            onClick={() => {
+                                setSelected(null);
+                                setModalMode("create");
+                                setModalOpen(true);
+                            }}
+                            data-testid="employees-new"
+                        >
+                            New employee
+                        </button>
+                    ) : null}
                     <button className="btn btnGhost" onClick={load} data-testid="employees-refresh">
                         Refresh
                     </button>
@@ -188,6 +195,8 @@ export default function Employees() {
                 mode={modalMode}
                 employee={selected}
                 loading={loadingEmployee}
+                canWrite={canWrite}
+                canDelete={canDelete}
                 onClose={() => setModalOpen(false)}
                 onSaved={() => load()}
             />

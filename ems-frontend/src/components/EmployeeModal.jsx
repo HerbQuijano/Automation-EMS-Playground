@@ -17,8 +17,9 @@ const emptyForm = {
 
 };
 
-export default function EmployeeModal({ open, mode, employee, loading = false, onClose, onSaved }) {
+export default function EmployeeModal({ open, mode, employee, loading = false, canWrite = true, canDelete = false, onClose, onSaved }) {
     const isEdit = mode === "edit";
+    const readOnly = !canWrite;
 
     const initial = useMemo(() => {
         if (!isEdit || !employee) return emptyForm;
@@ -50,6 +51,7 @@ export default function EmployeeModal({ open, mode, employee, loading = false, o
 
     const [form, setForm] = useState(initial);
     const [saving, setSaving] = useState(false);
+    const [deleting, setDeleting] = useState(false);
     const [error, setError] = useState("");
     const [touched, setTouched] = useState(false);
 
@@ -124,6 +126,22 @@ export default function EmployeeModal({ open, mode, employee, loading = false, o
         }
     }
 
+    async function remove() {
+        if (!confirm(`Delete ${employee?.first_name} ${employee?.last_name}? This cannot be undone.`)) return;
+
+        setDeleting(true);
+        setError("");
+        try {
+            await apiFetch(`/api/employees/${employee.id}`, { method: "DELETE" });
+            onSaved?.();
+            onClose?.();
+        } catch (err) {
+            setError(err.message || "Could not delete employee");
+        } finally {
+            setDeleting(false);
+        }
+    }
+
     function requestClose() {
         if (saving || loading) return;
 
@@ -153,6 +171,7 @@ export default function EmployeeModal({ open, mode, employee, loading = false, o
                 </div>
 
                 <div className="modalBody">
+                    <fieldset disabled={readOnly} style={{ border: 0, padding: 0, margin: 0 }}>
                     <div className="grid2">
                         <div>
                             <label className="label">First name *</label>
@@ -319,17 +338,30 @@ export default function EmployeeModal({ open, mode, employee, loading = false, o
                             data-testid="emp-notes"
                         />
                     </div>
+                    </fieldset>
 
                     {error ? <div className="error" data-testid="emp-error">{error}</div> : null}
                 </div>
 
                 <div className="modalFooter">
-                    <button className="btn btnGhost" onClick={requestClose} disabled={saving}>
-                        Cancel
+                    {isEdit && canDelete ? (
+                        <button
+                            className="btn btnDanger"
+                            onClick={remove}
+                            disabled={deleting || saving || loading}
+                            data-testid="emp-delete"
+                        >
+                            {deleting ? "Deleting..." : "Delete"}
+                        </button>
+                    ) : null}
+                    <button className="btn btnGhost" onClick={requestClose} disabled={saving || deleting}>
+                        {readOnly ? "Close" : "Cancel"}
                     </button>
-                    <button className="btn" onClick={save} disabled={saving || loading} data-testid="emp-save">
-                        {saving ? "Saving..." : "Save"}
-                    </button>
+                    {readOnly ? null : (
+                        <button className="btn" onClick={save} disabled={saving || deleting || loading} data-testid="emp-save">
+                            {saving ? "Saving..." : "Save"}
+                        </button>
+                    )}
                 </div>
             </div>
         </div>
