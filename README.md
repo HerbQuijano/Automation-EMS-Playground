@@ -312,3 +312,7 @@ This provides interactive documentation for all available endpoints.
 - To generate allure report use: `allure generate reports/allure-results --clean -o reports/allure-report`
 - To open allure report use: `allure open reports/allure-report`
 - To select reporter use : `npx playwright test --reporter=<reporter>`
+
+## License
+
+This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
