@@ -46,6 +46,4 @@ docker-compose.yml
 Jenkinsfile
 # OS generated files
 
-#claude md
-claude.md
 .claude
